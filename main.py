@@ -6,11 +6,12 @@ import pandas as pd
 # Se especifican las rutas de los archivos CSV conque se van a trabajar
 file_path = 'Data/Datos_csv/reviews_nlp.csv'
 file_path1 = 'Data/Datos_csv/games.csv'
+file_path2 = 'Data/Datos_csv/df_train_filtrado.csv'
 
 # Se leen los archivos CSV y crean los DataFrame
-reviews_nlp = pd.read_csv(file_path, parse_dates= ['posted'])
+reviews = pd.read_csv(file_path, parse_dates= ['posted'])
 games = pd.read_csv(file_path1, parse_dates= ['release_date'])
-
+df_train_filtrado = pd.read_csv(file_path2)
 
 """
 Se crean las funciones para los endpoints
@@ -19,7 +20,7 @@ Se crean las funciones para los endpoints
 
 def countreviews(start_date, end_date):
     # Filtrar las filas del DataFrame entre las fechas dadas
-    filtered_reviews = reviews_nlp[(reviews_nlp['posted'] >= start_date) & (reviews_nlp['posted'] <= end_date)]
+    filtered_reviews = reviews[(reviews['posted'] >= start_date) & (reviews['posted'] <= end_date)]
     
     # Contar la cantidad de usuarios únicos que realizaron reviews en el período dado
     unique_users_count = filtered_reviews['user_id'].nunique()
@@ -27,18 +28,12 @@ def countreviews(start_date, end_date):
     # Calcular el porcentaje de recomendación basado en la columna "recommend"
     recommend_percentage = (filtered_reviews['recommend'].sum() / len(filtered_reviews)) * 100
     
-    return unique_users_count, recommend_percentage
-
-# Definir las fechas de inicio y fin en formato "YYYY-MM-DD"
-start_date = '2015-1-1'
-end_date = '2015-12-30'
-
-# Llamar a la función para obtener los resultados
-users_count, recommend_percentage = countreviews(start_date, end_date)
-
-# Imprimir los resultados
-print(f"Cantidad de usuarios que realizaron reviews entre {start_date} y {end_date}: {users_count}")
-print(f"Porcentaje de recomendación en base a recommend: {recommend_percentage:.2f}%")
+    # Crear un diccionario con los resultados
+    results = {
+        f"Cantidad de usuarios que realizaron reviews entre {start_date} y {end_date}: {unique_users_count}. "
+        f"Porcentaje de recomendación en base a recommend: {recommend_percentage:.2f} %"
+    }
+    return results
 
 
 
@@ -47,7 +42,7 @@ def sentiment_analysis(date_str):
     target_date = pd.to_datetime(date_str)
     
     # Filtra las reseñas que coincidan con el año objetivo
-    filtered_reviews = reviews_nlp[reviews_nlp['posted'].dt.year == target_date.year]
+    filtered_reviews = reviews[reviews['posted'].dt.year == target_date.year]
     
     # Realiza el conteo de las categorías de sentimiento
     sentiment_counts = filtered_reviews['sentiment_analysis'].value_counts()
@@ -55,11 +50,11 @@ def sentiment_analysis(date_str):
     # Crea una lista con los recuentos de categorías
     result_list = f'Negative = {sentiment_counts.get(0, 0)}, Neutral = {sentiment_counts.get(1, 0)}, Positive = {sentiment_counts.get(2, 0)}'
     
-    return result_list
-
-# Ejemplo de uso: Obtener el análisis de sentimientos para el año 2018
-result = sentiment_analysis('2011-12-30')
-print(result)
+     # Crear un diccionario con los resultados
+    results1 = {
+        f"Para el año de lanazamiento {date_str} se registraron las siguientes reseñas por categoria: {result_list}" 
+    }    
+    return results1
 
 
 
@@ -70,39 +65,110 @@ def developers_por_letra(letra):
     
     return list(filtered_developers)
 
-# # Ejemplo de uso: Obtener desarrolladores cuyos nombres comienzan con la letra 'A'
-# letra = 'b'
-# developers_con_A = developers_por_letra(letra)
-
-# print(f'Desarrolladores cuyos nombres comienzan con la letra "{letra}":')
-# for developer in developers_con_A:
-#     print(developer)
 
 
-
-def developer(empresa_desarrolladora: str):
+def developer_juegos_gratis(empresa_desarrolladora: str):
     # Filtra el DataFrame para obtener solo las filas de la empresa desarrolladora especificada
     developer_df = games[games['developer'] == empresa_desarrolladora]
     
     # Agrupa por año y cuenta la cantidad de juegos lanzados en cada año
-    games_by_year = developer_df.groupby(developer_df['release_date'].dt.year)['id'].count()
+    games_by_year = developer_df.groupby(developer_df['release_date'].dt.year)['item_id'].count()
     
     # Cuenta la cantidad de juegos gratuitos lanzados en cada año
-    free_games_by_year = developer_df[developer_df['price'] == 'Free To Play'].groupby(developer_df['release_date'].dt.year)['id'].count()
+    free_games_by_year = developer_df[developer_df['price'] == 'Free To Play'].groupby(developer_df['release_date'].dt.year)['item_id'].count()
     
     # Calcula el porcentaje de juegos gratuitos por año
     percentage_free_by_year = (free_games_by_year / games_by_year * 100).fillna(0)
-    
-    return percentage_free_by_year
-    # #Imprime el resultado
-    # print(f'{empresa_desarrolladora}\n')
-    # print('Año\tContenido Contenido Free')
-    # for year, percentage in percentage_free_by_year.items():
-    #     total_games = games_by_year.get(year, 0)
-    #     print(f'{year}\t{total_games}\t{percentage:.1f}%')
 
-    # # Llama a la función con el nombre de la empresa desarrolladora que deseas analizar
-    # developer('Ubisoft')
+     # Crear un diccionario con los resultados
+    results2 = {
+        empresa_desarrolladora: {f'{year}': {
+                 'total_games': float(games_by_year.get(year, 0)),
+             'percentage_free': round(percentage, 1)
+            }
+            for year, percentage in percentage_free_by_year.items()
+        }
+    }
+    
+    return results2
+
+
+
+def user_id():
+    # Suponiendo que 'reviews' es tu DataFrame
+    valores_unicos_user_id = reviews['user_id'].unique().tolist()
+
+    # Imprime la lista de valores únicos de 'user_id'
+    return valores_unicos_user_id
+
+
+"""
+Definimos y entrenamos el sistema de recomendacion
+"""
+
+from surprise import Dataset
+from surprise import Reader
+from surprise.model_selection import train_test_split
+from surprise.model_selection import KFold
+from surprise import accuracy
+from surprise import KNNBasic, KNNWithMeans, KNNBaseline
+from surprise import SVD
+
+
+# Configura el lector y la escala de calificación (ajusta esto según tus datos)
+reader = Reader(rating_scale=(0, 1))
+
+# Carga los datos
+data = Dataset.load_from_df(df_train_filtrado[['user_id', 'item_id', 'recommend']], reader)
+
+# Divide los datos en conjuntos de entrenamiento y prueba
+trainset, testset = train_test_split(data, test_size=0.2)
+
+# Crea el modelo KNN (K-Nearest Neighbors) para encontrar usuarios similares
+sim_options = {'name': 'pearson', 'user_based': True}
+algo = KNNBasic(sim_options=sim_options)
+
+# Entrena el modelo en el conjunto de entrenamiento
+algo.fit(trainset)
+
+# Supongamos que tenemos un usuario de interés con user_id = 'tu_usuario'
+def similar_user(tu_usuario: str):
+
+    # Encuentra los usuarios más similares al usuario de interés
+    similar_users = algo.get_neighbors(algo.trainset.to_inner_uid(tu_usuario), k=10)
+
+    # Filtra las reseñas de los usuarios similares
+    reviews_similares = reviews[reviews['user_id'].isin([algo.trainset.to_raw_uid(uid) for uid in similar_users])]
+
+    # Filtra las reseñas de juegos que han sido recomendados (recommend=True)
+    juegos_recomendados = reviews_similares[reviews_similares['recommend']]
+
+    # Obtén la lista de juegos recomendados por usuarios similares
+    juegos_recomendados_lista = juegos_recomendados['item_id'].unique()
+
+    # Inicializa una lista vacía para almacenar los juegos encontrados
+    juegos_encontrados = []
+
+    # Itera a través de la lista de juegos recomendados
+    for juego_id in juegos_recomendados_lista:
+        # Busca el juego en el DataFrame games
+        juego = games[games['item_id'] == juego_id]
+        
+        # Si se encuentra el juego, agrégalo a la lista de juegos encontrados
+        if not juego.empty:
+            juegos_encontrados.append(juego[['item_id', 'app_name']])  # Agrega solo las columnas "item_id" y "app_name" del juego encontrado
+
+        # Si ya hemos encontrado 5 juegos, detén el bucle
+        if len(juegos_encontrados) == 5:
+            break
+
+    # Convierte la lista de juegos encontrados en un DataFrame
+    juegos_encontrados_df = pd.concat(juegos_encontrados, ignore_index=True)
+
+    # Imprime el DataFrame de juegos encontrados con las columnas "item_id" y "app_name"
+    juegos_encontrados = juegos_encontrados_df[['item_id', 'app_name']].to_dict(orient='records')
+    return juegos_encontrados
+
 
 
 
@@ -126,20 +192,12 @@ def Letra_inicial(Inicial: str):
 
 @app.get("/developer_juegos_gratis/{Nombre}")
 def Juegos_gratis_developer(Nombre_Devpr: str):
-    return developer(Nombre_Devpr)
+    return developer_juegos_gratis(Nombre_Devpr)
 
+@app.get("/lista_user_id")
+def lista_users():
+    return user_id()
 
-
-class Libro(BaseModel):
-    titulo: str
-    autor: str
-    paginas: int
-    editorial: Optional[str]
-
-@app.get("/libros/{id}")
-def mostrar_libros(id: int):
-    return {"data": id}
-
-@app.post("/libros")
-def insertar_libro(obra:Libro):
-    return {"mensaje":f"libro {obra.titulo} insertado"}
+@app.get("/similar_user/{user_id}")
+def usuario_similar(user_id: str):
+    return similar_user(user_id)
