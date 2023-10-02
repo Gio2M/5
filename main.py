@@ -110,13 +110,13 @@ def user_id():
 Definimos y entrenamos el sistema de recomendacion
 """
 
-# from surprise import Dataset
-# from surprise import Reader
-# from surprise.model_selection import train_test_split
-# from surprise.model_selection import KFold
-# from surprise import accuracy
-# from surprise import KNNBasic, KNNWithMeans, KNNBaseline
-# from surprise import SVD
+from surprise import Dataset
+from surprise import Reader
+from surprise.model_selection import train_test_split
+#from surprise.model_selection import KFold
+from surprise import accuracy
+from surprise import KNNBasic #, KNNWithMeans, KNNBaseline
+#from surprise import SVD
 
 
 # # Configura el lector y la escala de calificación (ajusta esto según tus datos)
