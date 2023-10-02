@@ -8,10 +8,14 @@ file_path = 'Data/Datos_csv/reviews_nlp.csv'
 file_path1 = 'Data/Datos_csv/games.csv'
 file_path2 = 'Data/Datos_csv/df_train_filtrado.csv'
 
+
 # Se leen los archivos CSV y crean los DataFrame
 reviews = pd.read_csv(file_path, parse_dates= ['posted'])
 games = pd.read_csv(file_path1, parse_dates= ['release_date'])
 df_train_filtrado = pd.read_csv(file_path2)
+
+
+
 
 """
 Se crean las funciones para los endpoints
@@ -96,7 +100,7 @@ def developer_juegos_gratis(empresa_desarrolladora: str):
 
 def user_id():
     # Suponiendo que 'reviews' es tu DataFrame
-    valores_unicos_user_id = reviews['user_id'].unique().tolist()
+    valores_unicos_user_id = df_train_filtrado['user_id'].unique().tolist()
 
     # Imprime la lista de valores únicos de 'user_id'
     return valores_unicos_user_id
@@ -106,68 +110,68 @@ def user_id():
 Definimos y entrenamos el sistema de recomendacion
 """
 
-from surprise import Dataset
-from surprise import Reader
-from surprise.model_selection import train_test_split
-from surprise.model_selection import KFold
-from surprise import accuracy
-from surprise import KNNBasic, KNNWithMeans, KNNBaseline
-from surprise import SVD
+# from surprise import Dataset
+# from surprise import Reader
+# from surprise.model_selection import train_test_split
+# from surprise.model_selection import KFold
+# from surprise import accuracy
+# from surprise import KNNBasic, KNNWithMeans, KNNBaseline
+# from surprise import SVD
 
 
-# Configura el lector y la escala de calificación (ajusta esto según tus datos)
-reader = Reader(rating_scale=(0, 1))
+# # Configura el lector y la escala de calificación (ajusta esto según tus datos)
+# reader = Reader(rating_scale=(0, 1))
 
-# Carga los datos
-data = Dataset.load_from_df(df_train_filtrado[['user_id', 'item_id', 'recommend']], reader)
+# # Carga los datos
+# data = Dataset.load_from_df(df_train_filtrado[['user_id', 'item_id', 'recommend']], reader)
 
-# Divide los datos en conjuntos de entrenamiento y prueba
-trainset, testset = train_test_split(data, test_size=0.2)
+# # Divide los datos en conjuntos de entrenamiento y prueba
+# trainset, testset = train_test_split(data, test_size=0.2)
 
-# Crea el modelo KNN (K-Nearest Neighbors) para encontrar usuarios similares
-sim_options = {'name': 'pearson', 'user_based': True}
-algo = KNNBasic(sim_options=sim_options)
+# # Crea el modelo KNN (K-Nearest Neighbors) para encontrar usuarios similares
+# sim_options = {'name': 'pearson', 'user_based': True}
+# algo = KNNBasic(sim_options=sim_options)
 
-# Entrena el modelo en el conjunto de entrenamiento
-algo.fit(trainset)
+# # Entrena el modelo en el conjunto de entrenamiento
+# algo.fit(trainset)
 
-# Supongamos que tenemos un usuario de interés con user_id = 'tu_usuario'
-def similar_user(tu_usuario: str):
+# # Supongamos que tenemos un usuario de interés con user_id = 'tu_usuario'
+# def similar_user(tu_usuario: str):
 
-    # Encuentra los usuarios más similares al usuario de interés
-    similar_users = algo.get_neighbors(algo.trainset.to_inner_uid(tu_usuario), k=10)
+#     # Encuentra los usuarios más similares al usuario de interés
+#     similar_users = algo.get_neighbors(algo.trainset.to_inner_uid(tu_usuario), k=10)
 
-    # Filtra las reseñas de los usuarios similares
-    reviews_similares = reviews[reviews['user_id'].isin([algo.trainset.to_raw_uid(uid) for uid in similar_users])]
+#     # Filtra las reseñas de los usuarios similares
+#     reviews_similares = reviews[reviews['user_id'].isin([algo.trainset.to_raw_uid(uid) for uid in similar_users])]
 
-    # Filtra las reseñas de juegos que han sido recomendados (recommend=True)
-    juegos_recomendados = reviews_similares[reviews_similares['recommend']]
+#     # Filtra las reseñas de juegos que han sido recomendados (recommend=True)
+#     juegos_recomendados = reviews_similares[reviews_similares['recommend']]
 
-    # Obtén la lista de juegos recomendados por usuarios similares
-    juegos_recomendados_lista = juegos_recomendados['item_id'].unique()
+#     # Obtén la lista de juegos recomendados por usuarios similares
+#     juegos_recomendados_lista = juegos_recomendados['item_id'].unique()
 
-    # Inicializa una lista vacía para almacenar los juegos encontrados
-    juegos_encontrados = []
+#     # Inicializa una lista vacía para almacenar los juegos encontrados
+#     juegos_encontrados = []
 
-    # Itera a través de la lista de juegos recomendados
-    for juego_id in juegos_recomendados_lista:
-        # Busca el juego en el DataFrame games
-        juego = games[games['item_id'] == juego_id]
+#     # Itera a través de la lista de juegos recomendados
+#     for juego_id in juegos_recomendados_lista:
+#         # Busca el juego en el DataFrame games
+#         juego = games[games['item_id'] == juego_id]
         
-        # Si se encuentra el juego, agrégalo a la lista de juegos encontrados
-        if not juego.empty:
-            juegos_encontrados.append(juego[['item_id', 'app_name']])  # Agrega solo las columnas "item_id" y "app_name" del juego encontrado
+#         # Si se encuentra el juego, agrégalo a la lista de juegos encontrados
+#         if not juego.empty:
+#             juegos_encontrados.append(juego[['item_id', 'app_name']])  # Agrega solo las columnas "item_id" y "app_name" del juego encontrado
 
-        # Si ya hemos encontrado 5 juegos, detén el bucle
-        if len(juegos_encontrados) == 5:
-            break
+#         # Si ya hemos encontrado 5 juegos, detén el bucle
+#         if len(juegos_encontrados) == 5:
+#             break
 
-    # Convierte la lista de juegos encontrados en un DataFrame
-    juegos_encontrados_df = pd.concat(juegos_encontrados, ignore_index=True)
+#     # Convierte la lista de juegos encontrados en un DataFrame
+#     juegos_encontrados_df = pd.concat(juegos_encontrados, ignore_index=True)
 
-    # Imprime el DataFrame de juegos encontrados con las columnas "item_id" y "app_name"
-    juegos_encontrados = juegos_encontrados_df[['item_id', 'app_name']].to_dict(orient='records')
-    return juegos_encontrados
+#     # Imprime el DataFrame de juegos encontrados con las columnas "item_id" y "app_name"
+#     juegos_encontrados = juegos_encontrados_df[['item_id', 'app_name']].to_dict(orient='records')
+#     return juegos_encontrados
 
 
 
