@@ -116,24 +116,27 @@ from surprise.model_selection import train_test_split
 #from surprise.model_selection import KFold
 from surprise import accuracy
 from surprise import KNNBasic #, KNNWithMeans, KNNBaseline
+#import joblib
 #from surprise import SVD
 
+# Cargar el modelo
+#algo = joblib.load('modelo_surprise.pkl')
 
-# # Configura el lector y la escala de calificación (ajusta esto según tus datos)
-# reader = Reader(rating_scale=(0, 1))
+# Configura el lector y la escala de calificación (ajusta esto según tus datos)
+reader = Reader(rating_scale=(0, 1))
 
-# # Carga los datos
-# data = Dataset.load_from_df(df_train_filtrado[['user_id', 'item_id', 'recommend']], reader)
+# Carga los datos
+data = Dataset.load_from_df(df_train_filtrado[['user_id', 'item_id', 'recommend']], reader)
 
-# # Divide los datos en conjuntos de entrenamiento y prueba
-# trainset, testset = train_test_split(data, test_size=0.2)
+# Divide los datos en conjuntos de entrenamiento y prueba
+trainset, testset = train_test_split(data, test_size=0.2)
 
-# # Crea el modelo KNN (K-Nearest Neighbors) para encontrar usuarios similares
-# sim_options = {'name': 'pearson', 'user_based': True}
-# algo = KNNBasic(sim_options=sim_options)
+# Crea el modelo KNN (K-Nearest Neighbors) para encontrar usuarios similares
+sim_options = {'name': 'pearson', 'user_based': True}
+algo = KNNBasic(sim_options=sim_options)
 
-# # Entrena el modelo en el conjunto de entrenamiento
-# algo.fit(trainset)
+# Entrena el modelo en el conjunto de entrenamiento
+algo.fit(trainset)
 
 # # Supongamos que tenemos un usuario de interés con user_id = 'tu_usuario'
 # def similar_user(tu_usuario: str):
